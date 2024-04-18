@@ -1,0 +1,17 @@
+.git/
+coverage/
+dist/
+node_modules/
+.editorconfig
+.env
+README.md
+sample.env
+*.dump
+.docker-compose.sample.env
+.docker-compose.env
+.eslintrc.js
+.prettierrc
+
+Dockerfile
+Dockerfile-ci
+Dockerfile-dev
