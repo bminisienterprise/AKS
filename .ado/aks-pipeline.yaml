@@ -1,0 +1,94 @@
+trigger: none
+
+variables:
+  - name: PoolImage
+    value: 'ubuntu-latest'
+
+  # Build Variables
+  - name: DockerfilePath
+    value: '**/Dockerfile'
+  - name: ContainerRegistry
+    value: '<AcrUri>' #replace with your container registry
+  - name: ImageRepositorykv #replace with your image repository
+    value: '<AcrRepositoryName>'
+  - name: ImageRegistryServiceConnection #replace with your service connection
+    value: '<AcrServiceConnection>'
+  - name: tag
+    value: '$(Build.BuildNumber)'
+
+    # Release Variables
+  - name: EnvironmentName
+    value: '<EnvironmentName>' #replace with your environment name
+  - name: AksServiceConnection
+    value: '<AksServiceConnection>' #replace with your AKS service connection
+  - name: AksNamespace
+    value: 'default'
+
+stages:  
+- stage: BuildDockerImage
+  displayName: 'Build and push docker image'
+  jobs:
+  - job: BuildandPushDockerImage
+    pool:
+      vmimage: $(PoolImage)
+    steps:
+    - task: Docker@2
+      inputs:
+        repository: $(ImageRepositorykv)
+        command: buildAndPush
+        Dockerfile: $(DockerfilePath)
+        containerRegistry: $(ImageRegistryServiceConnection)
+        tags: $(tag) 
+    
+    - task: CopyFiles@2
+      displayName: "Copy Manifest Files to: $(Build.ArtifactStagingDirectory)"
+      inputs:
+        SourceFolder: $(Build.SourcesDirectory)
+        Contents: |
+          manifest/*.* 
+        TargetFolder: "$(Build.ArtifactStagingDirectory)"
+        flattenFolders: true
+        
+    - task: PublishBuildArtifacts@1
+      displayName: "Publish Manifest files to artifact"
+      inputs:
+        pathtoPublish: $(Build.ArtifactStagingDirectory)
+        ArtifactName: 'manifests'
+
+- stage: DeploytoKubernetes
+  displayName: "Deploy to Kuberenetes"
+  dependsOn: BuildDockerImage
+  jobs:
+  - deployment: DeploytoKubernetes
+    displayName: "Deploy to Kuberenetes"
+    pool:
+      vmimage: $(PoolImage)
+    environment: '$(EnvironmentName)' #customize with your environment
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              artifactName: 'manifests'
+              downloadPath: $(System.ArtifactsDirectory)/manifests
+
+          - task: KubernetesManifest@0
+            displayName: Create secret provider 
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: $(AksServiceConnection)
+              namespace: $(AksNamespace)              
+              manifests: |
+                $(System.ArtifactsDirectory)/manifests/secrets-kv.yaml
+
+          - task: KubernetesManifest@0
+            displayName: Deploy to Kubernetes cluster
+            inputs:
+              action: 'deploy'
+              kubernetesServiceConnection: '$(AksServiceConnection)'
+              namespace: '$(AksNamespace)'
+              containers: '$(containerRegistry)/$(ImageRepositorykv):$(tag)'
+              manifests: |
+                $(System.ArtifactsDirectory)/manifests/deploymentkv.yaml
+                $(System.ArtifactsDirectory)/manifests/servicekv.yaml
