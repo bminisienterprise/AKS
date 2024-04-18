@@ -1,0 +1,50 @@
+# ------------------------deployment------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <ServiceName> #replace with your service name
+  labels:
+    app: <ServiceName> #replace with your service name
+    component: bl
+spec:
+  selector:
+    matchLabels:
+      app: <ServiceName> #replace with your service name
+      component: bl
+  template:
+    metadata:
+      labels:
+        app: <ServiceName> #replace with your service name
+        component: bl
+    spec:
+      containers:
+        - name: <ServiceName>
+          image: <MyAcrName>.azurecr.io/<AcrRepositoryName>:<TagName> #replace with your ACR name, repository name, and tag
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: <VolumeMountName> #Must be all lower case
+              mountPath: '/mnt/secrets-store'
+              readOnly: true
+          env:
+            - name: <EnvVarNameCodeWillUse>
+              valueFrom:
+                secretKeyRef:
+                  name: <SecretObjectName> #name of the SecretObjectName found in secrets-kv.yaml
+                  key: <SecretKey> #key of the secret object in the SecretProviderClass found in secrets-kv.yaml
+
+      volumes:
+        - name: <VolumeMountName> #replace with the same name as the volumeMounts name. Must be all lower case
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: '<SecretProviderClassName>' #name of the SecretProviderClass found in secrets-kv.yaml
+
+      imagePullSecrets:
+        - name: acr-secret #pull secret name from bullet 7 of Readme.md

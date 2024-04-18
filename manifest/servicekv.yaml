@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: <ServiceName>
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-ipv4: PrivateIpAddress #replace with your internal IP after service has been created
+    #or
+    # service.beta.kubernetes.io/azure-load-balancer-internal: "false"
+    # service.beta.kubernetes.io/azure-load-balancer-ipv4: publicIP from Service
+spec:
+  selector:
+    app: <ServiceName>
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080  
+  type: LoadBalancer
+  
