@@ -11,4 +11,4 @@ kubectl create secret docker-registry acr-secret --docker-server="acrName.azurec
 
 8. Run the following az command to enable keyvault secret rotation (run az login and az account set --subscription MySubscriptionId first to login to subscription)
 
-az aks addon update -g ResourceGroupName-n AKSName -a azure-keyvault-secrets-provider --enable-secret-rotation
+az aks addon update -g ResourceGroupName -n AKSName -a azure-keyvault-secrets-provider --enable-secret-rotation
